@@ -111,6 +111,16 @@ details.more[open] summary::after{content:" ▴"}
 .zadd{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .zadd input,select{font:inherit;font-size:14px;font-weight:700;padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
 .zadd input{width:130px;font-weight:500}
+.zadd input.wide{flex:1;min-width:190px}
+.zmsg{font-size:13px;color:var(--sub);margin:8px 0 0;min-height:1em}
+.zmsg.err{color:var(--bad)}
+.zres{list-style:none;margin:8px 0 0;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.zres:empty{display:none}
+.zres li button{all:unset;box-sizing:border-box;width:100%;display:flex;gap:10px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--line);font-size:14px;cursor:pointer}
+.zres li:last-child button{border-bottom:0}
+.zres li button:hover,.zres li button:focus-visible{background:var(--soft)}
+.zres .t{flex:1;word-break:keep-all}
+.zres .go{font-size:13px;font-weight:700;color:var(--accent);white-space:nowrap}
 .leaflet-tooltip.ztip{background:rgba(255,255,255,.9);border:0;box-shadow:0 1px 4px rgba(0,0,0,.2);color:#12806b;font-weight:800;font-size:12px;padding:2px 9px;border-radius:999px}
 .leaflet-tooltip.ztip:before{display:none}
 .btn.on,.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
@@ -243,8 +253,14 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
             <option value="200" selected>반경 200 m</option>
             <option value="500">반경 500 m</option>
           </select>
-          <button class="btn primary" id="zoneAdd" type="button">지금 위치로 추가</button>
         </div>
+        <div class="zadd">
+          <input type="text" id="zAddr" class="wide" placeholder="주소나 장소 (양화로37번길 34)" aria-label="주소 검색">
+          <button class="btn primary" id="zSearch" type="button">주소로 찾기</button>
+          <button class="btn" id="zoneAdd" type="button">지금 위치로 추가</button>
+        </div>
+        <p class="zmsg" id="zMsg"></p>
+        <ul class="zres" id="zres"></ul>
       </div>
 
       <div class="sec">
@@ -958,15 +974,68 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   });
 
   $('modeBtn').textContent = live ? '실시간 연결 사용 중' : '시연 모드 사용 중';
-  $('zoneAdd').addEventListener('click', function(){
-    if(!loc){ addLog('아직 위치를 받지 못해 안심 구역을 추가할 수 없습니다.'); return; }
-    var name = $('zName').value.trim() || ('구역 ' + (zones.length + 1));
-    var z = {id:Date.now().toString(36), name:name, lat:loc.lat, lng:loc.lng, r:+$('zoneR').value};
+  // ---- 주소로 안심 구역 찾기 (OpenStreetMap 무료 주소 검색, 인터넷 필요) ----
+  function zMsg(t, err){ $('zMsg').textContent = t || ''; $('zMsg').className = 'zmsg' + (err ? ' err' : ''); }
+  function shortAddr(r){
+    var parts = (r.display_name || '').split(', ').reverse().filter(function(x){ return x && x !== '대한민국' && !/^\d{5}$/.test(x); });
+    return parts.join(' ') || r.name || '';
+  }
+  function addZoneAt(lat, lng, name, label){
+    var z = {id:Date.now().toString(36), name:name, lat:lat, lng:lng, r:+$('zoneR').value};
     zones.push(z);
-    $('zName').value = '';
-    zoneState = {here:z.id, cand:z.id, since:Date.now()};   // 지금 위치에 만들었으니 이미 안에 있음
     saveZones();
-    addLog('안심 구역 등록: ' + name + ' (반경 ' + z.r + ' m)');
+    addLog('안심 구역 등록: ' + name + ' (반경 ' + z.r + ' m)' + (label ? ' · ' + label : ''));
+    $('zName').value = '';
+    if(hasMap && map){
+      follow = false;   // 등록한 곳을 보여 주기 위해 잠깐 따라가기를 멈춤 ('현재 위치' 버튼으로 다시 따라감)
+      map.fitBounds(L.latLng(lat, lng).toBounds(z.r * 2.4));
+      $('mapBox').scrollIntoView({behavior:'smooth', block:'center'});
+    }
+    return z;
+  }
+  var searchBusy = false;
+  function searchAddr(){
+    var q = $('zAddr').value.trim();
+    $('zres').innerHTML = '';
+    if(!q){ zMsg('찾을 주소나 장소 이름을 입력하세요.', true); $('zAddr').focus(); return; }
+    if(searchBusy) return;
+    searchBusy = true;
+    zMsg('찾는 중…');
+    var ctl = new AbortController(), t = setTimeout(function(){ ctl.abort(); }, 8000);
+    fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=kr&accept-language=ko&q=' + encodeURIComponent(q), {signal:ctl.signal})
+      .then(function(r){ clearTimeout(t); if(!r.ok) throw new Error('http'); return r.json(); })
+      .then(function(list){
+        searchBusy = false;
+        if(!list || !list.length){ zMsg('검색 결과가 없어요. 도로명과 건물번호(양화로37번길 34)나 장소 이름으로 다시 찾아보세요.', true); return; }
+        zMsg('아래에서 맞는 곳을 고르면 안심 구역으로 등록돼요.');
+        list.forEach(function(r){
+          var li = document.createElement('li'), b = document.createElement('button'), tx = document.createElement('span'), go = document.createElement('span');
+          var label = shortAddr(r);
+          b.type = 'button';
+          tx.className = 't'; tx.textContent = label;
+          go.className = 'go'; go.textContent = '이곳으로 등록';
+          b.appendChild(tx); b.appendChild(go);
+          b.addEventListener('click', function(){
+            var name = $('zName').value.trim() || r.name || ('구역 ' + (zones.length + 1));
+            addZoneAt(+r.lat, +r.lon, name.slice(0, 10), label);
+            $('zres').innerHTML = ''; $('zAddr').value = '';
+            zMsg('등록했어요: ' + name.slice(0, 10));
+          });
+          li.appendChild(b); $('zres').appendChild(li);
+        });
+      })
+      .catch(function(){ clearTimeout(t); searchBusy = false; zMsg('주소를 찾지 못했어요. 인터넷 연결을 확인하고 다시 시도하세요.', true); });
+  }
+  $('zSearch').addEventListener('click', searchAddr);
+  $('zAddr').addEventListener('keydown', function(e){ if(e.key === 'Enter') searchAddr(); });
+  $('zAddr').addEventListener('input', function(){ if($('zMsg').className.indexOf('err') > -1) zMsg(''); });
+
+  $('zoneAdd').addEventListener('click', function(){
+    if(!loc){ zMsg('아직 위치를 받지 못했어요. 주소로 찾아서 등록해 보세요.', true); return; }
+    var name = $('zName').value.trim() || ('구역 ' + (zones.length + 1));
+    var z = addZoneAt(loc.lat, loc.lng, name, '현재 위치');
+    zoneState = {here:z.id, cand:z.id, since:Date.now()};   // 지금 위치에 만들었으니 이미 안에 있음
+    zMsg('지금 위치로 등록했어요: ' + name);
   });
   $('zName').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('zoneAdd').click(); });
   initMap();
