@@ -100,7 +100,19 @@ details.more[open] summary::after{content:" ▴"}
 .zone{font-size:17px;font-weight:800;letter-spacing:-.02em}
 .zone.ok{color:var(--ok)} .zone.bad{color:var(--bad)}
 .zsub{font-size:13px;color:var(--sub);margin-top:2px}
-select{font:inherit;font-size:14px;font-weight:700;padding:9px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.zlist{list-style:none;margin:12px 0 0;padding:0}
+.zlist li{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.zlist .zn{font-weight:800;white-space:nowrap}
+.zlist .zm{flex:1;color:var(--sub);font-size:13px;font-variant-numeric:tabular-nums}
+.zlist li.here .zn{color:var(--ok)}
+.zlist li.here .zn::after{content:" · 지금 여기";font-weight:600;font-size:12px}
+.zlist .del{all:unset;cursor:pointer;color:var(--sub);font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid var(--line)}
+.zlist .del:hover{border-color:var(--bad);color:var(--bad)}
+.zadd{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.zadd input,select{font:inherit;font-size:14px;font-weight:700;padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.zadd input{width:130px;font-weight:500}
+.leaflet-tooltip.ztip{background:rgba(255,255,255,.9);border:0;box-shadow:0 1px 4px rgba(0,0,0,.2);color:#12806b;font-weight:800;font-size:12px;padding:2px 9px;border-radius:999px}
+.leaflet-tooltip.ztip:before{display:none}
 .btn.on,.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .locbtn{background:var(--panel)}
 .racts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
@@ -220,17 +232,18 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
 
       <div class="sec">
         <h2>안심 구역</h2>
-        <div class="zone" id="zoneText">아직 설정하지 않았어요</div>
-        <div class="zsub" id="zoneSub">지금 위치를 기준으로 반경을 정하면, 벗어날 때 알려 드려요.</div>
-        <div class="racts">
+        <div class="zone" id="zoneText">아직 등록한 구역이 없어요</div>
+        <div class="zsub" id="zoneSub">집, 복지관처럼 자주 가는 곳을 등록해 두면, 모든 구역을 벗어났을 때 알려 드려요.</div>
+        <ul class="zlist" id="zlist"></ul>
+        <div class="zadd">
+          <input type="text" id="zName" placeholder="이름 (집, 복지관)" maxlength="10" aria-label="구역 이름">
           <select id="zoneR" aria-label="안심 구역 반경">
             <option value="50">반경 50 m</option>
             <option value="100">반경 100 m</option>
             <option value="200" selected>반경 200 m</option>
             <option value="500">반경 500 m</option>
           </select>
-          <button class="btn primary" id="zoneSet" type="button">지금 위치로 설정</button>
-          <button class="btn" id="zoneOff" type="button" hidden>해제</button>
+          <button class="btn primary" id="zoneAdd" type="button">지금 위치로 추가</button>
         </div>
       </div>
 
@@ -466,17 +479,61 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   }
   function drawView(){ if(hasMap) drawMap(); else drawTrail(); }
 
-  // ---- 안심 구역 (이 기기 브라우저에 저장) ----
-  var zone = null, zoneLayer = null;
-  try { zone = JSON.parse(localStorage.getItem('geoshoes_zone') || 'null'); } catch(e){}
-  function drawZone(){
+  // ---- 안심 구역: 여러 곳을 이름 붙여 등록 (이 기기 브라우저에 저장) ----
+  var zones = [], zoneLayer = null, zoneState = {here:undefined, cand:undefined, since:0};
+  try { zones = JSON.parse(localStorage.getItem('geoshoes_zones') || '[]') || []; } catch(e){ zones = []; }
+  function zoneName(id){ for(var i = 0; i < zones.length; i++) if(zones[i].id === id) return zones[i].name; return null; }
+  function drawZones(){
     if(!hasMap || !map) return;
-    if(zoneLayer){ map.removeLayer(zoneLayer); zoneLayer = null; }
-    if(zone) zoneLayer = L.circle([zone.lat, zone.lng], {radius:zone.r, color:'#12806b', weight:2, dashArray:'6 6', fillColor:'#12806b', fillOpacity:.05, interactive:false}).addTo(map);
+    if(zoneLayer) map.removeLayer(zoneLayer);
+    zoneLayer = L.layerGroup().addTo(map);
+    zones.forEach(function(z){
+      L.circle([z.lat, z.lng], {radius:z.r, color:'#12806b', weight:2, dashArray:'6 6', fillColor:'#12806b', fillOpacity:.06, interactive:false})
+        .bindTooltip(z.name, {permanent:true, direction:'center', className:'ztip'}).addTo(zoneLayer);
+    });
   }
-  function saveZone(){
-    try { if(zone) localStorage.setItem('geoshoes_zone', JSON.stringify(zone)); else localStorage.removeItem('geoshoes_zone'); } catch(e){}
-    drawZone();
+  function renderZoneList(){
+    var ul = $('zlist');
+    ul.innerHTML = '';
+    zones.forEach(function(z){
+      var li = document.createElement('li'), n = document.createElement('span'), m = document.createElement('span'), d = document.createElement('button');
+      li.id = 'z' + z.id;
+      n.className = 'zn'; n.textContent = z.name;
+      m.className = 'zm'; m.id = 'zm' + z.id; m.textContent = '반경 ' + z.r + ' m';
+      d.className = 'del'; d.type = 'button'; d.textContent = '삭제';
+      d.addEventListener('click', function(){
+        if(!window.confirm('"' + z.name + '" 구역을 지울까요?')) return;
+        zones = zones.filter(function(x){ return x.id !== z.id; });
+        saveZones();
+        addLog('안심 구역 삭제: ' + z.name);
+      });
+      li.appendChild(n); li.appendChild(m); li.appendChild(d); ul.appendChild(li);
+    });
+  }
+  function saveZones(){
+    try { localStorage.setItem('geoshoes_zones', JSON.stringify(zones)); } catch(e){}
+    drawZones(); renderZoneList();
+  }
+  // 지금 위치가 어느 구역 안에 있는지, 가장 가까운 구역은 어디인지
+  function zoneCheck(){
+    if(!zones.length || !loc) return null;
+    var nearest = null, nd = 1e12, inside = null, id = 1e12;
+    zones.forEach(function(z){
+      var d = distM(z, loc); z._d = d;
+      if(d < nd){ nd = d; nearest = z; }
+      if(d <= z.r && d < id){ id = d; inside = z; }
+    });
+    return {inside:inside, nearest:nearest, nd:nd};
+  }
+  // 구역 출입이 LOG_HOLD_MS 동안 유지될 때만 알림 기록
+  function zoneLog(prev, cur){
+    if(cur === 'out'){
+      addLog('안심 구역을 모두 벗어났습니다' + (prev && prev !== 'out' && zoneName(prev) ? ' (마지막: ' + zoneName(prev) + ')' : '') + '. 위치를 확인하세요.');
+    } else if(prev === 'out'){
+      addLog(zoneName(cur) + '에 들어왔습니다.');
+    } else if(prev !== undefined){
+      addLog(zoneName(cur) + '에 도착했습니다' + (zoneName(prev) ? ' (' + zoneName(prev) + '에서 이동).' : '.'));
+    }
   }
 
   // ---- 이동 기록 ----
@@ -687,33 +744,46 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     }
 
     // 안심 구역
-    var zoneOut = false, zd = 0;
-    if(zone){
-      $('zoneOff').hidden = false;
-      $('zoneSet').textContent = '지금 위치로 다시 설정';
-      $('zoneSet').className = 'btn';
-      if(loc){
-        zd = distM(zone, loc);
-        zoneOut = zd > zone.r;
-        $('zoneText').textContent = zoneOut ? '안심 구역 밖에 있어요' : '안심 구역 안에 있어요';
-        $('zoneText').className = 'zone ' + (zoneOut ? 'bad' : 'ok');
-        $('zoneSub').textContent = '중심에서 약 ' + fmtDist(zd) + ' · 반경 ' + zone.r + ' m';
-        stableLog('zone', zoneOut, '안심 구역을 벗어났습니다. 위치를 확인하세요.', '안심 구역으로 돌아왔습니다.');
-      }
-    } else {
-      $('zoneOff').hidden = true;
-      $('zoneSet').textContent = '지금 위치로 설정';
-      $('zoneSet').className = 'btn primary';
-      $('zoneText').textContent = '아직 설정하지 않았어요';
+    var zc = zoneCheck(), zoneOut = false, zoneMsg = '';
+    if(!zones.length){
+      $('zoneText').textContent = '아직 등록한 구역이 없어요';
       $('zoneText').className = 'zone';
-      $('zoneSub').textContent = loc ? '지금 위치를 기준으로 반경을 정하면, 벗어날 때 알려 드려요.' : '위치를 받으면 설정할 수 있어요.';
+      $('zoneSub').textContent = loc ? '집, 복지관처럼 자주 가는 곳을 등록해 두면, 모든 구역을 벗어났을 때 알려 드려요.' : '위치를 받으면 등록할 수 있어요.';
+    } else if(!zc){
+      $('zoneText').textContent = '위치를 기다리는 중이에요';
+      $('zoneText').className = 'zone';
+      $('zoneSub').textContent = '안심 구역 ' + zones.length + '곳 등록됨';
+    } else {
+      zones.forEach(function(z){
+        var m = $('zm' + z.id), li = $('z' + z.id);
+        if(m) m.textContent = '반경 ' + z.r + ' m · 여기서 ' + fmtDist(z._d);
+        if(li) li.className = (zc.inside === z ? 'here' : '');
+      });
+      if(zc.inside){
+        $('zoneText').textContent = zc.inside.name + ' 안에 있어요';
+        $('zoneText').className = 'zone ok';
+        $('zoneSub').textContent = '등록한 안심 구역 ' + zones.length + '곳 중 한 곳에 있어요.';
+      } else {
+        zoneOut = true;
+        zoneMsg = '가장 가까운 ' + zc.nearest.name + '에서 약 ' + fmtDist(zc.nd) + ' 떨어져 있어요.';
+        $('zoneText').textContent = '모든 안심 구역 밖에 있어요';
+        $('zoneText').className = 'zone bad';
+        $('zoneSub').textContent = zoneMsg;
+      }
+      var here = zc.inside ? zc.inside.id : 'out';
+      if(here !== zoneState.cand){ zoneState.cand = here; zoneState.since = now; }
+      if(zoneState.cand !== zoneState.here && now - zoneState.since >= LOG_HOLD_MS){
+        var before = zoneState.here;
+        zoneState.here = zoneState.cand;
+        zoneLog(before, zoneState.here);
+      }
     }
 
     // 안내 문구
     var n = $('notice');
     if(zoneOut){
       n.className = 'notice show bad';
-      n.textContent = '안심 구역을 벗어났습니다. 중심에서 약 ' + fmtDist(zd) + ' 떨어져 있어요.';
+      n.textContent = '안심 구역을 모두 벗어났습니다. ' + zoneMsg;
     } else if(lastRx && !connected){
       n.className = 'notice show bad';
       n.textContent = '깔창 연결이 끊겼습니다. 아래 위치는 ' + fmtAge(now - lastRx) + ' 기준 마지막 위치입니다.';
@@ -777,7 +847,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       else if(moving){ mt = '움직이고 있어요'; ms = '걷거나 발을 움직이는 중입니다.'; mc = 'ok'; }
       else if(tilted){ mt = '발이 많이 기울어져 있어요'; ms = '앉아 있거나 누워 있을 수 있습니다. 상황을 확인해 보세요.'; mc = 'warn'; }
       else { mt = '가만히 있어요'; ms = lastMoveAt ? ('마지막 움직임 ' + fmtAge(now - lastMoveAt)) : '아직 움직임이 감지되지 않았어요.'; mc = ''; }
-      if(zoneOut){ mt = '안심 구역을 벗어났어요'; ms = '중심에서 약 ' + fmtDist(zd) + ' 떨어져 있어요. 위치를 확인하세요.'; mc = 'bad'; }
+      if(zoneOut){ mt = '안심 구역을 벗어났어요'; ms = zoneMsg + ' 위치를 확인하세요.'; mc = 'bad'; }
       $('mvTitle').textContent = mt;
       $('mvSub').textContent = ms;
       $('mvDot').className = 'mvdot ' + mc;
@@ -888,18 +958,20 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   });
 
   $('modeBtn').textContent = live ? '실시간 연결 사용 중' : '시연 모드 사용 중';
-  $('zoneR').addEventListener('change', function(){ if(zone){ zone.r = +this.value; saveZone(); addLog('안심 구역 반경을 ' + zone.r + ' m로 바꿨습니다.'); } });
-  $('zoneSet').addEventListener('click', function(){
-    if(!loc){ addLog('아직 위치를 받지 못해 안심 구역을 정할 수 없습니다.'); return; }
-    zone = {lat:loc.lat, lng:loc.lng, r:+$('zoneR').value};
-    stab.zone = {cand:false, since:Date.now(), logged:false};   // 새 구역 기준으로 다시 판단
-    saveZone();
-    addLog('안심 구역을 설정했습니다 (반경 ' + zone.r + ' m).');
+  $('zoneAdd').addEventListener('click', function(){
+    if(!loc){ addLog('아직 위치를 받지 못해 안심 구역을 추가할 수 없습니다.'); return; }
+    var name = $('zName').value.trim() || ('구역 ' + (zones.length + 1));
+    var z = {id:Date.now().toString(36), name:name, lat:loc.lat, lng:loc.lng, r:+$('zoneR').value};
+    zones.push(z);
+    $('zName').value = '';
+    zoneState = {here:z.id, cand:z.id, since:Date.now()};   // 지금 위치에 만들었으니 이미 안에 있음
+    saveZones();
+    addLog('안심 구역 등록: ' + name + ' (반경 ' + z.r + ' m)');
   });
-  $('zoneOff').addEventListener('click', function(){ zone = null; delete stab.zone; saveZone(); addLog('안심 구역을 해제했습니다.'); });
-  if(zone){ $('zoneR').value = String(zone.r); stab.zone = {cand:false, since:Date.now(), logged:false}; }   // 처음 열었을 때 이미 밖이면 알림을 남기도록
+  $('zName').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('zoneAdd').click(); });
   initMap();
-  drawZone();
+  drawZones();
+  renderZoneList();
   setTab((location.hash || '').slice(1));
   poll(); render();
   setInterval(poll, 2000);
