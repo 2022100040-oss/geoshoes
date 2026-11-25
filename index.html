@@ -474,7 +474,13 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     if(!hasMap){ $('map').style.display = 'none'; $('locBtn').style.display = 'none'; return; }
     $('trail').style.display = 'none';
     map = L.map('map', {zoomControl:true}).setView([37.5665, 126.978], 12);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+    // OpenStreetMap 지도는 PC에서 파일을 직접 열면(file://) 접속 주소 정보가 없어 지도를 막습니다.
+    // 그럴 때는 같은 OpenStreetMap 데이터를 쓰는 CARTO 지도로 대신 보여 줍니다.
+    if(location.protocol === 'file:'){
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {maxZoom:19, subdomains:'abcd', attribution:'© OpenStreetMap © CARTO'}).addTo(map);
+    } else {
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+    }
     map.on('dragstart', function(){ follow = false; });
     setTimeout(function(){ map.invalidateSize(); }, 300);
   }
@@ -526,9 +532,38 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       li.appendChild(n); li.appendChild(m); li.appendChild(d); ul.appendChild(li);
     });
   }
+  // 구역은 Firebase(/geoshoes/zones)에 저장 → 가족 모두 같은 구역을 보고, 메인 보드가 읽어서 이탈 시 휴대폰 알림을 보냄
+  function zonesObj(){
+    var o = {};
+    zones.forEach(function(z){ o[z.id] = {name:z.name, lat:z.lat, lng:z.lng, r:z.r}; });
+    return o;
+  }
   function saveZones(){
     try { localStorage.setItem('geoshoes_zones', JSON.stringify(zones)); } catch(e){}
     drawZones(); renderZoneList();
+    if(!live) return;   // 시연 모드에서는 이 브라우저에만 저장
+    fetch(DB_URL + ROOT + '/zones.json', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(zonesObj())})
+      .then(function(r){ if(!r.ok) throw new Error('http'); try { localStorage.setItem('geoshoes_zones_synced', '1'); } catch(e){} })
+      .catch(function(){ addLog('안심 구역을 클라우드에 저장하지 못했습니다. 인터넷 연결을 확인하세요.'); });
+  }
+  function loadZonesRemote(){
+    if(!live) return;
+    fetch(DB_URL + ROOT + '/zones.json', {cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw new Error('http'); return r.json(); })
+      .then(function(o){
+        var synced = false;
+        try { synced = localStorage.getItem('geoshoes_zones_synced') === '1'; } catch(e){}
+        if(o === null && !synced){ if(zones.length) saveZones(); return; }   // 처음 한 번: 이 브라우저에 있던 구역을 클라우드로 옮김
+        try { localStorage.setItem('geoshoes_zones_synced', '1'); } catch(e){}
+        var arr = Object.keys(o || {}).sort().map(function(k){ var v = o[k] || {}; return {id:k, name:String(v.name || '안심 구역'), lat:+v.lat, lng:+v.lng, r:+v.r || 200}; })
+                  .filter(function(z){ return isFinite(z.lat) && isFinite(z.lng); });
+        var cur = zones.map(function(z){ return {id:z.id, name:z.name, lat:z.lat, lng:z.lng, r:z.r}; });
+        if(JSON.stringify(arr) === JSON.stringify(cur)) return;   // 바뀐 게 없으면 그대로
+        zones = arr;
+        try { localStorage.setItem('geoshoes_zones', JSON.stringify(zones)); } catch(e){}
+        drawZones(); renderZoneList();
+      })
+      .catch(function(){});
   }
   // 지금 위치가 어느 구역 안에 있는지, 가장 가까운 구역은 어디인지
   function zoneCheck(){
@@ -764,7 +799,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     if(!zones.length){
       $('zoneText').textContent = '아직 등록한 구역이 없어요';
       $('zoneText').className = 'zone';
-      $('zoneSub').textContent = loc ? '집, 복지관처럼 자주 가는 곳을 등록해 두면, 모든 구역을 벗어났을 때 알려 드려요.' : '위치를 받으면 등록할 수 있어요.';
+      $('zoneSub').textContent = loc ? '집, 복지관처럼 자주 가는 곳을 등록해 두면, 모든 구역을 벗어났을 때 보호자 폰으로 알려 드려요. 등록한 구역은 가족 모두에게 공유돼요.' : '위치를 받으면 지금 위치로, 또는 주소로 찾아서 등록할 수 있어요.';
     } else if(!zc){
       $('zoneText').textContent = '위치를 기다리는 중이에요';
       $('zoneText').className = 'zone';
@@ -993,6 +1028,28 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     }
     return z;
   }
+  // 입력한 주소를 OpenStreetMap이 찾기 쉬운 형태로 단계별로 바꿔 봄
+  // 1) 그대로  2) 층·호·괄호·상호 등을 뺀 '도시 + 도로명 + 번호'  3) '도로명 + 번호'  4) '도시 + 도로명'(도로 위치)
+  function addrCandidates(q){
+    var list = [], add = function(x, note){ x = (x || '').replace(/\s+/g, ' ').trim(); if(x && !list.some(function(c){ return c.q === x; })) list.push({q:x, note:note}); };
+    var clean = q.replace(/\([^)]*\)/g, ' ').replace(/,/g, ' ')
+                 .replace(/지하\s*\d+\s*층?/g, ' ').replace(/\d+\s*층/g, ' ').replace(/\d+\s*호/g, ' ')
+                 .replace(/경기\s/, '경기도 ').replace(/서울\s/, '서울특별시 ');
+    add(q, '');
+    var road = clean.match(/([가-힣A-Za-z0-9]+(?:로|길))\s*(\d+(?:-\d+)?)/);
+    var city = clean.match(/([가-힣]+시)(?=\s|$)/);
+    var gu = clean.match(/([가-힣]+[구군])(?=\s|$)/);
+    if(road){
+      var rn = road[1] + ' ' + road[2];
+      add((city ? city[1] + ' ' : '') + (gu ? gu[1] + ' ' : '') + rn, '');
+      add((city ? city[1] + ' ' : '') + rn, '');
+      add(rn, '');
+      add((city ? city[1] + ' ' : '') + road[1], '건물을 못 찾아 도로 위치로 찾았어요. 반경을 넉넉하게 잡으세요.');
+    } else {
+      add(clean, '');
+    }
+    return list;
+  }
   var searchBusy = false;
   function searchAddr(){
     var q = $('zAddr').value.trim();
@@ -1000,31 +1057,41 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     if(!q){ zMsg('찾을 주소나 장소 이름을 입력하세요.', true); $('zAddr').focus(); return; }
     if(searchBusy) return;
     searchBusy = true;
-    zMsg('찾는 중…');
-    var ctl = new AbortController(), t = setTimeout(function(){ ctl.abort(); }, 8000);
-    fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=kr&accept-language=ko&q=' + encodeURIComponent(q), {signal:ctl.signal})
-      .then(function(r){ clearTimeout(t); if(!r.ok) throw new Error('http'); return r.json(); })
-      .then(function(list){
+    var cands = addrCandidates(q), i = 0;
+    function tryNext(){
+      if(i >= cands.length){
         searchBusy = false;
-        if(!list || !list.length){ zMsg('검색 결과가 없어요. 도로명과 건물번호(양화로37번길 34)나 장소 이름으로 다시 찾아보세요.', true); return; }
-        zMsg('아래에서 맞는 곳을 고르면 안심 구역으로 등록돼요.');
-        list.forEach(function(r){
-          var li = document.createElement('li'), b = document.createElement('button'), tx = document.createElement('span'), go = document.createElement('span');
-          var label = shortAddr(r);
-          b.type = 'button';
-          tx.className = 't'; tx.textContent = label;
-          go.className = 'go'; go.textContent = '이곳으로 등록';
-          b.appendChild(tx); b.appendChild(go);
-          b.addEventListener('click', function(){
-            var name = $('zName').value.trim() || r.name || ('구역 ' + (zones.length + 1));
-            addZoneAt(+r.lat, +r.lon, name.slice(0, 10), label);
-            $('zres').innerHTML = ''; $('zAddr').value = '';
-            zMsg('등록했어요: ' + name.slice(0, 10));
+        zMsg('검색 결과가 없어요. 층수·상호를 빼고 도로명과 건물번호(만안로 230)만 쓰거나, 역·학교 같은 장소 이름으로 찾아보세요.', true);
+        return;
+      }
+      var c = cands[i++];
+      zMsg('찾는 중… (' + c.q + ')');
+      var ctl = new AbortController(), t = setTimeout(function(){ ctl.abort(); }, 8000);
+      fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=kr&accept-language=ko&q=' + encodeURIComponent(c.q), {signal:ctl.signal})
+        .then(function(r){ clearTimeout(t); if(!r.ok) throw new Error('http'); return r.json(); })
+        .then(function(list){
+          if(!list || !list.length){ setTimeout(tryNext, 1100); return; }   // 무료 서버 규칙: 1초에 한 번
+          searchBusy = false;
+          zMsg((c.q !== q ? '"' + c.q + '"(으)로 찾은 결과예요. ' : '') + (c.note || '아래에서 맞는 곳을 고르면 안심 구역으로 등록돼요.'));
+          list.forEach(function(r){
+            var li = document.createElement('li'), b = document.createElement('button'), tx = document.createElement('span'), go = document.createElement('span');
+            var label = shortAddr(r);
+            b.type = 'button';
+            tx.className = 't'; tx.textContent = label;
+            go.className = 'go'; go.textContent = '이곳으로 등록';
+            b.appendChild(tx); b.appendChild(go);
+            b.addEventListener('click', function(){
+              var name = ($('zName').value.trim() || r.name || ('구역 ' + (zones.length + 1))).slice(0, 10);
+              addZoneAt(+r.lat, +r.lon, name, label);
+              $('zres').innerHTML = ''; $('zAddr').value = '';
+              zMsg('등록했어요: ' + name);
+            });
+            li.appendChild(b); $('zres').appendChild(li);
           });
-          li.appendChild(b); $('zres').appendChild(li);
-        });
-      })
-      .catch(function(){ clearTimeout(t); searchBusy = false; zMsg('주소를 찾지 못했어요. 인터넷 연결을 확인하고 다시 시도하세요.', true); });
+        })
+        .catch(function(){ clearTimeout(t); searchBusy = false; zMsg('주소를 찾지 못했어요. 인터넷 연결을 확인하고 다시 시도하세요.', true); });
+    }
+    tryNext();
   }
   $('zSearch').addEventListener('click', searchAddr);
   $('zAddr').addEventListener('keydown', function(e){ if(e.key === 'Enter') searchAddr(); });
@@ -1041,6 +1108,8 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   initMap();
   drawZones();
   renderZoneList();
+  loadZonesRemote();
+  setInterval(loadZonesRemote, 30000);   // 다른 가족이 바꾼 구역도 30초 안에 반영
   setTab((location.hash || '').slice(1));
   poll(); render();
   setInterval(poll, 2000);
