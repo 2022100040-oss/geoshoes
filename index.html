@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#f3f6f6">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<title>지오슈즈 보호자 화면</title>
+<title>지오슈즈 보호자 화면 · 온라인</title>
 <style>
 :root{
   --bg:#f3f6f6; --panel:#ffffff; --ink:#0e2429; --sub:#5f7479; --line:#e3e9e9; --handle:#cfd8d8;
@@ -29,6 +29,22 @@ body{margin:0;background:var(--bg);color:var(--ink);
   font-family:"Pretendard Variable","Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
 .wrap{position:relative;max-width:600px;margin:0 auto;min-height:100vh;background:var(--bg)}
 .page[hidden]{display:none}
+.gaitcard{border:1px solid var(--line);border-radius:18px;padding:14px;background:var(--soft)}
+.gaitnums{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--sub);margin-bottom:10px}
+.gaitnums b{display:block;color:var(--ink);font-size:21px;font-variant-numeric:tabular-nums}
+.gaitchart{width:100%;height:120px;display:block;border-radius:12px;background:var(--panel)}
+.gaitctl{display:flex;gap:8px;align-items:center;margin-top:10px}
+.gaitctl input{flex:1;min-width:0;accent-color:var(--ok)}
+.gaitread{font-size:13px;color:var(--sub);margin:9px 0 0;min-height:2em}
+.gaitvisual{background:var(--panel);border-radius:16px;padding:12px;min-height:190px}
+.gaitfoot{width:100%;height:146px;display:block}
+#shoeMove{transition:transform 45ms linear}
+.gaitzone{transition:opacity 50ms linear}
+.gaitlabels{font-size:13px;color:var(--sub);line-height:1.9}
+.gaitlabels b{display:block;font-size:16px;color:var(--ink)}
+.gaitkey{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+@media (prefers-reduced-motion:reduce){#shoeMove,.gaitzone{transition:none}}
+
 
 /* 지도 위에 떠 있는 상단 바 */
 .top{position:absolute;top:0;left:0;right:0;z-index:900;display:flex;justify-content:space-between;align-items:center;padding:calc(12px + env(safe-area-inset-top,0px)) 14px 0;pointer-events:none}
@@ -45,6 +61,7 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .badge.ok .dot{background:var(--ok)} .badge.warn .dot{background:var(--warn)} .badge.bad .dot{background:var(--bad)}
 .badge.ok{color:var(--ok)} .badge.warn{color:var(--warn)} .badge.bad{color:var(--bad)}
 
+
 /* 지도: 화면 맨 위부터 끝까지 */
 .mapbox{position:relative;z-index:0}
 .map{height:min(54vh,430px);min-height:300px;background:var(--soft);position:relative;z-index:0}
@@ -56,12 +73,16 @@ svg.trail{display:block;width:100%;height:min(54vh,430px);min-height:300px;backg
 .notice.show{visibility:visible}
 .notice.bad{color:var(--bad);border-left-color:var(--bad)}
 .locbtn{position:absolute;right:12px;bottom:46px;z-index:500;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.maphelp{position:absolute;bottom:38px;left:12px;right:12px;z-index:550;display:flex;align-items:center;gap:8px;justify-content:space-between;background:var(--panel);color:var(--ink);padding:10px 12px;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.15);font-size:12px;line-height:1.4}
+.maphelp[hidden]{display:none}.maphelp a{color:var(--ok);font-weight:800;white-space:nowrap}
+
 
 /* 아래에서 올라오는 시트 */
 .sheet{position:relative;z-index:1;background:var(--panel);border-radius:28px 28px 0 0;margin-top:-28px;padding:12px 20px calc(110px + env(safe-area-inset-bottom,0px));min-height:56vh}
 .sheet::before{content:"";display:block;width:38px;height:4px;border-radius:4px;background:var(--handle);margin:0 auto 18px}
 .sec{margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}
 .sec h2{font-size:15px;margin:0 0 12px;font-weight:800;letter-spacing:-.02em}
+
 
 /* 지금 상태 */
 .hero{--tint:var(--soft);display:flex;gap:16px;align-items:center;min-height:104px;padding:16px 18px;border-radius:20px;background:var(--tint);transition:background .5s}
@@ -81,6 +102,7 @@ details.more[open] summary::after{content:" ▴"}
 .kv div{background:var(--soft);border-radius:14px;padding:10px 12px;font-size:12px;color:var(--sub)}
 .kv b{display:block;font-size:18px;color:var(--ink);font-variant-numeric:tabular-nums}
 
+
 /* 위치 정보 */
 .stats{display:grid;grid-template-columns:repeat(3,1fr);margin-top:20px}
 .stats>div{font-size:12px;color:var(--sub)}
@@ -91,6 +113,7 @@ details.more[open] summary::after{content:" ▴"}
 .coords{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .coord{font-size:18px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:1.3}
 .coord span{display:block;font-size:12px;font-weight:500;color:var(--sub)}
+
 
 /* 버튼 */
 .btn{font:inherit;font-size:14px;font-weight:700;padding:10px 18px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;text-decoration:none;display:inline-block;text-align:center}
@@ -128,6 +151,7 @@ details.more[open] summary::after{content:" ▴"}
 .racts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .row2 .btn{flex:1}
 
+
 /* 발바닥 압력 */
 .foot{display:flex;gap:20px;align-items:center}
 svg.insole{width:54px;flex:none}
@@ -140,6 +164,7 @@ svg.insole{width:54px;flex:none}
 .state{margin-top:14px}
 .chip{display:inline-block;padding:5px 14px;border-radius:999px;font-size:13px;font-weight:700;background:var(--soft)}
 .chip.ok{color:var(--ok);background:var(--t-ok)} .chip.bad{color:var(--bad);background:var(--t-bad)}
+
 
 /* 이동 기록 */
 .hsum{font-size:14px;color:var(--sub)}
@@ -160,6 +185,7 @@ ul.hl li button{all:unset;box-sizing:border-box;width:100%;display:flex;justify-
 ul.hl li button:hover,ul.hl li button:focus-visible{background:var(--soft)}
 ul.hl li span.a{color:var(--sub);font-size:13px}
 
+
 /* 알림·시험 */
 #page-log .sheet{margin-top:0;border-radius:0;padding-top:calc(76px + env(safe-area-inset-top,0px));background:var(--bg)}
 #page-log .sheet::before{display:none}
@@ -168,6 +194,7 @@ ul.log{list-style:none;margin:0;padding:0;font-size:14px;max-height:380px;overfl
 ul.log li{padding:12px 0;border-bottom:1px solid var(--line);display:flex;gap:12px}
 ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
 .src{display:flex;gap:8px;flex-wrap:wrap}
+
 
 /* 아래 탭 */
 .tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(600px,100%);display:flex;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:1000}
@@ -190,6 +217,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     </div>
   </header>
 
+
   <!-- 1. 홈 -->
   <main class="page" id="page-home">
     <div id="mapSlotHome">
@@ -198,8 +226,10 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
         <div class="map" id="map"></div>
         <button class="btn locbtn" id="locBtn" type="button">현재 위치</button>
         <svg class="trail" id="trail" viewBox="0 0 300 170" preserveAspectRatio="xMidYMid meet" role="img" aria-label="이동 경로"></svg>
+        <div class="maphelp" id="mapHelp" hidden><span id="mapHelpText">인터넷 지도를 불러오지 못했어요.</span><a id="mapOnline" href="#" target="_blank" rel="noopener" hidden>온라인 지도 열기 ↗</a></div>
       </div>
     </div>
+
 
     <section class="sheet">
       <div class="hero" id="hero">
@@ -217,11 +247,13 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
         </div>
       </details>
 
+
       <div class="stats">
         <div>위치 갱신<b id="locAge" class="age">--</b></div>
         <div>오차 반경<b id="acc">--</b></div>
         <div>센서 갱신<b id="rxAge" class="age">--</b></div>
       </div>
+
 
       <div class="sec">
         <h2>마지막 위치</h2>
@@ -239,6 +271,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
           <button class="btn primary" id="goHist" type="button">이동 기록 보기</button>
         </div>
       </div>
+
 
       <div class="sec">
         <h2>안심 구역</h2>
@@ -272,14 +305,46 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
             <ellipse id="fHeel" cx="50" cy="178" rx="20" ry="24" fill="var(--accent)" opacity="0"/>
           </svg>
           <div class="bars">
-            <div class="bar"><label>앞꿈치 <b id="vFront">0</b></label><div class="track"><div class="fill" id="bFront"></div></div></div>
-            <div class="bar"><label>뒤꿈치 <b id="vHeel">0</b></label><div class="track"><div class="fill" id="bHeel"></div></div></div>
+            <div class="bar"><label>앞꿈치 1</label><div class="track"><div class="fill" id="bFront"></div></div></div>
+            <div class="bar"><label>앞꿈치 2</label><div class="track"><div class="fill" id="bFront2"></div></div></div>
+            <div class="bar"><label>뒤꿈치</label><div class="track"><div class="fill" id="bHeel"></div></div></div>
           </div>
         </div>
         <div class="state"><span id="wear" class="chip">착용 확인 중</span></div>
+        <div class="state">이 발의 착지 후보 <b id="landingNum">--</b>회 · 주기 <b id="cadenceNum">--</b>회/분</div>
+        <p class="hint">게이지는 센서별 상대 표시입니다. 뒤꿈치는 실측에 맞춘 0~400 눈금, 앞꿈치 둘은 0~4095 눈금이라 게이지 길이를 서로 비교해 체중 비율로 해석하지 마세요.</p>
+      </div>
+      <div class="sec">
+        <h2>오른발 보행 패턴</h2>
+        <div class="gaitcard">
+          <div class="gaitnums"><span>현재 세션 착지<b id="gaitTotal">--</b></span><span>최근 기록의 착지<b id="gaitRecent">--</b></span><span>착지 주기<b id="gaitCad">--</b></span></div>
+          <div class="gaitnums"><span>최근 착지 간격<b id="patternInterval">--</b></span><span>앞꿈치 접촉 시간<b id="patternContact">--</b></span><span>간격 변동<b id="patternVariation">--</b></span></div>
+          <p class="gaitread" id="patternState">반복 보행을 기다리는 중이에요.</p>
+          <div class="gaitvisual">
+            <svg class="gaitfoot" id="gaitFoot" viewBox="0 0 360 150" role="img" aria-label="신발 옆모습의 보행 시각화. 사람은 표시하지 않습니다">
+              <path d="M12 133H348" stroke="var(--line)" stroke-width="3" stroke-linecap="round"/>
+              <ellipse id="shoeShadow" cx="181" cy="132" rx="114" ry="6" fill="var(--line)" opacity=".75"/>
+              <g id="shoeMove">
+                <path d="M60 107Q73 101 75 79L78 46Q105 57 123 62L148 87Q175 93 208 95L240 84Q256 82 270 98Q279 102 306 105Q324 108 323 120Q282 129 229 127H84Q58 128 60 107Z" fill="var(--accent)" stroke="var(--ink)" stroke-width="2"/>
+                <path d="M79 47Q104 62 122 67L150 91L202 99Q154 107 115 104L73 97Q81 74 79 47Z" fill="var(--soft)" opacity=".92"/>
+                <path d="M61 113Q140 119 212 114Q281 111 323 118L321 125Q260 132 212 128H83Q61 130 61 113Z" fill="var(--panel)" stroke="var(--ink)" stroke-width="2"/>
+                <path d="M116 74L153 87M109 80L147 94M104 87L139 99" fill="none" stroke="var(--panel)" stroke-width="3" stroke-linecap="round"/>
+                <ellipse class="gaitzone" id="animHeel" cx="96" cy="116" rx="26" ry="8" fill="var(--warn)" opacity=".08"/>
+                <ellipse class="gaitzone" id="animFront1" cx="255" cy="116" rx="25" ry="8" fill="var(--ok)" opacity=".08"/>
+                <ellipse class="gaitzone" id="animFront2" cx="296" cy="116" rx="20" ry="7" fill="var(--accent)" opacity=".08"/>
+              </g>
+            </svg>
+            <div class="gaitlabels"><b id="gaitAnimState">기록 대기</b><small>신발 옆모습 · 들어 올림/착지 = 센서값 기반 표현</small></div>
+          </div>
+          <div class="gaitctl"><button class="btn" id="gaitPlay" type="button">재생</button><input id="gaitSeek" type="range" min="0" max="0" value="0" aria-label="보행 기록 위치"><select id="gaitSpeed" aria-label="재생 속도"><option value="100">0.5배</option><option value="50" selected>1배</option><option value="25">2배</option></select></div>
+          <p class="gaitread" id="gaitRead">신발의 보행 기록을 기다리는 중이에요.</p>
+          <details class="more"><summary>센서 변화 그래프 보기</summary><svg class="gaitchart" id="gaitChart" viewBox="0 0 360 120" preserveAspectRatio="none" role="img" aria-label="최근 앞꿈치 센서의 상대 변화와 착지 시점"></svg></details>
+        </div>
+        <p class="hint">최근 약 30초의 50ms 센서 측정으로 신발 옆모습을 움직입니다. 실제 보행 영상이나 관절 움직임의 복원이 아닌 추정 시각화이며, 통신이 끊긴 구간은 빠질 수 있습니다.</p>
       </div>
     </section>
   </main>
+
 
   <!-- 2. 이동 기록 -->
   <main class="page" id="page-hist" hidden>
@@ -314,6 +379,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     </section>
   </main>
 
+
   <!-- 3. 알림·시험 -->
   <main class="page" id="page-log" hidden>
     <section class="sheet">
@@ -326,11 +392,12 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
           <button class="btn" id="dropBtn" type="button">연결 끊김 시험</button>
           <button class="btn" id="clrBtn" type="button">저장된 이동 기록 지우기</button>
         </div>
-        <p class="hint">평소에는 ESP32 1번이 클라우드에 올린 실시간 데이터를 받습니다. 시연 모드는 가짜 데이터로 화면을 확인할 때만 쓰세요. 연결 끊김 시험은 시연 모드에서 작동합니다.</p>
+        <p class="hint">평소에는 ESP32 1번에서 실시간 데이터를 받습니다. 시연 모드는 가짜 데이터로 화면을 확인할 때만 쓰세요. 연결 끊김 시험은 시연 모드에서 작동합니다.</p>
       </details>
     </section>
   </main>
 </div>
+
 
 <nav class="tabbar" role="tablist" aria-label="화면 이동">
   <button type="button" role="tab" data-t="home" aria-selected="true">
@@ -347,16 +414,18 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   </button>
 </nav>
 
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 (function(){
   var WEAR_MIN = 300;        // 앞+뒤 압력 합이 이 값보다 작으면 착용 해제로 판단
   var STALE_LOC_MS = 60000;  // 위치가 이 시간 넘게 갱신되지 않으면 지연 표시
-  var LOST_MS = 20000;       // 센서 데이터가 이 시간 넘게 없으면 연결 끊김 (클라우드는 위치 조회 중 업로드가 잠깐 늦어질 수 있어 넉넉하게)
+  var LOST_MS = 8000;        // 센서 데이터가 이 시간 넘게 없으면 연결 끊김
   var WEAR_HOLD_MS = 6000;   // 마지막으로 밟은 뒤 이 시간 안이면 '착용 중' (걸으며 발을 드는 순간을 벗은 것으로 오해하지 않도록)
   var PRESS_MIN = 150;       // 센서 하나가 이 값보다 크면 '눌림'으로 표시
   var LOG_HOLD_MS = 4000;    // 상태가 이 시간 이상 유지될 때만 알림 기록에 남김 (깜빡임 방지)
   var $ = function(id){return document.getElementById(id);};
+
 
   var live = (location.protocol !== 'file:'), dropped = false, busy = false;
   var lastRx = 0, lastSeq = -1, lastSeqAt = 0;
@@ -365,6 +434,8 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   var map = null, marker = null, ring = null, locDirty = false;
   var hist = [], histCount = -1, histBusy = false, histLayer = null, histDirty = false, lastMoveAt = 0;
   var lastPressAt = 0;
+  var gaitSamples = [], gaitSession = '', remoteSession = '', gaitFollowing = true, gaitBusy = false, gaitTimer = null;
+  var lastAnimatedSeq = -1, lastAnimatedLand = -1, gaitChartDirty = true;
   // 상태가 LOG_HOLD_MS 동안 그대로 유지될 때만 알림을 남김 (잠깐 바뀌었다 돌아오는 건 무시)
   var stab = {};
   function stableLog(key, val, msgOn, msgOff){
@@ -375,6 +446,8 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   }
   var hasMap = (typeof L !== 'undefined');
   var tab = 'home', follow = true;
+
+
 
 
   function pad(n){return (n<10?'0':'')+n;}
@@ -394,6 +467,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     return Math.floor(s/60) + '분 ' + (s%60) + '초 전';
   }
 
+
   // ---- 시연용 가짜 데이터 ----
   var demoT = 0, demoLat = 37.5665, demoLng = 126.9780;
   function demo(){
@@ -405,27 +479,28 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       sequence: demoT,
       heel: Math.max(0, Math.round(1800 + phase*1500 + Math.random()*120)),
       front: Math.max(0, Math.round(1800 - phase*1500 + Math.random()*120)),
+      front2: Math.max(0, Math.round(1600 - phase*1200 + Math.random()*100)),
+      landings: Math.floor(demoT/3), cadence: 50, walking: demoT > 5 ? 1 : 0,
       ax: +(Math.random()*0.5-0.25).toFixed(2), ay: +(Math.random()*0.5-0.25).toFixed(2), az: +(0.95+Math.random()*0.3).toFixed(2),
       roll: +(phase*12).toFixed(1), pitch: +(Math.random()*8-4).toFixed(1), mpuOK: 1,
       lat: demoLat, lng: demoLng, accuracy: 35, locAgeMs: 0, hasSensor: true, sensorAgeMs: 0, battery: 82
     };
   }
 
-  // ---- 실제 ESP32 연결 ----
-  var DB_URL = 'https://zeoshoes-592e1-default-rtdb.asia-southeast1.firebasedatabase.app';  // Firebase 주소 (끝에 / 없이)
-  var ROOT = /[?&]test/.test(location.search) ? '/geoshoes/test' : '/geoshoes';   // 주소 뒤에 ?test=1 을 붙이면 시험 데이터를 봄
-  if(ROOT !== '/geoshoes') document.querySelector('.brand').appendChild(document.createTextNode(' (시험)'));
-  var lastUp = -1, lastBase = 0;
+
+  // ---- 온라인 앱: 메인의 Firebase 업로드를 읽음. 휴대폰은 ESP32 Wi-Fi에 연결하지 않음 ----
+  var DB_URL = 'https://zeoshoes-592e1-default-rtdb.asia-southeast1.firebasedatabase.app';
+  var lastCloudUp = -1, lastCloudBase = 0;
   function fetchLive(){
     var ctl = new AbortController(), t = setTimeout(function(){ctl.abort();}, 6000);
-    return fetch(DB_URL + ROOT + '/now.json', {signal:ctl.signal, cache:'no-store'})
-      .then(function(r){clearTimeout(t); if(!r.ok) throw new Error('http'); return r.json();})
+    return fetch(DB_URL + '/geoshoes/now.json', {signal:ctl.signal, cache:'no-store'})
+      .then(function(r){if(!r.ok) throw new Error('http'); return r.json();})
       .then(function(d){
         if(!d) return null;
         var now = Date.now(), base;
-        if(d.t > 0){ base = Math.min(d.t * 1000, now); }   // 보드가 올린 시각
-        else { if(d.up !== lastUp){ lastUp = d.up; lastBase = now; } base = lastBase || now; }   // 시간 동기화 전에는 값이 바뀐 시점으로 판단
-        var lag = now - base;
+        if(d.t > 0) base = Math.min(d.t*1000, now);
+        else { if(d.up !== lastCloudUp){lastCloudUp = d.up; lastCloudBase = now;} base = lastCloudBase || now; }
+        var lag = Math.max(0, now-base);
         d.sensorAgeMs = (d.sensorAgeMs || 0) + lag;
         d.locAgeMs = (d.locAgeMs || 0) + lag;
         return d;
@@ -433,12 +508,122 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       .catch(function(){clearTimeout(t); return null;});
   }
 
+  // Firebase 배치의 50ms 프레임을 로컬 앱과 동일한 13열 샘플로 변환.
+  function unpackCloudGait(batches){
+    var out = [];
+    Object.keys(batches || {}).sort().forEach(function(key){
+      var records = batches[key] && batches[key].samples;
+      if(!Array.isArray(records)) return;
+      records.forEach(function(p){
+        if(!p || !Array.isArray(p.frames)) return;
+        var frames = p.frames.filter(function(f){return Array.isArray(f) && f.length >= 7;});
+        var landed = frames.reduce(function(n,f){return n + (f[5] ? 1 : 0);},0);
+        var steps = Math.max(0,(+p.landings || 0)-landed);
+        frames.forEach(function(f,i){
+          if(f[5]) steps++;
+          var ms = (+p.upMs || 0)-(+f[0] || 0);
+          var row = [ms, (+p.id || 0)*10+i, steps, +f[1], +f[2], +f[3],
+            +p.cadence || 0, +f[4]/1000, p.walking == null ? (+p.cadence > 0 ? 1 : 0) : +p.walking,
+            +p.intervalMs || 0, +p.contactMs || 0, +p.variationPct || 0, +f[6]];
+          if(row.every(function(v){return Number.isFinite(v);})) out.push(row);
+        });
+      });
+    });
+    out.sort(function(a,b){return a[0]-b[0] || a[1]-b[1];});
+    return out.slice(-600);
+  }
+  function fetchGait(){
+    if(!live || gaitBusy || !/^[a-f0-9]{8}$/i.test(remoteSession)) return;
+    gaitBusy = true;
+    var ctl = new AbortController(), timeout = setTimeout(function(){ctl.abort();}, 8000);
+    var session = remoteSession;
+    fetch(DB_URL + '/geoshoes/gait/' + session + '.json?orderBy=%22%24key%22&limitToLast=12', {signal:ctl.signal, cache:'no-store'})
+      .then(function(r){if(!r.ok) throw new Error('gait'); return r.json();})
+      .then(function(d){
+        if(session !== remoteSession) return;
+        if(gaitTimer) return; // 재생 중에는 30초 분량을 브라우저에서 고정하여 시간축이 밀리지 않게 함
+        if(gaitSession !== session){ gaitSession = session; gaitFollowing = true; lastAnimatedSeq = -1; lastAnimatedLand = -1; }
+        var seek = $('gaitSeek'), old = +seek.value;
+        var oldTime = gaitSamples[old] ? gaitSamples[old][0] : null;
+        gaitSamples = unpackCloudGait(d);
+        gaitChartDirty = true;
+        seek.max = Math.max(0, gaitSamples.length - 1);
+        if(gaitFollowing || oldTime === null) seek.value = seek.max;
+        else {
+          var nearest = 0, delta = Infinity;
+          for(var j=0;j<gaitSamples.length;j++){
+            var dms = Math.abs(gaitSamples[j][0]-oldTime);
+            if(dms < delta){delta = dms; nearest = j;}
+          }
+          seek.value = nearest;
+        }
+        renderGait();
+      })
+      .catch(function(){if(!gaitSamples.length) $('gaitRead').textContent = '보행 기록 연결 대기 중 · 본체의 Firebase 업로드와 인터넷을 확인해 주세요.';})
+      .then(function(){clearTimeout(timeout); gaitBusy = false;});
+  }
+
+  function renderGait(){
+    var n = gaitSamples.length, svg = $('gaitChart');
+    if(!n){ svg.innerHTML = ''; $('gaitRecent').textContent = '--'; return; }
+    var first = gaitSamples[0], last = gaitSamples[n-1], idx = Math.min(+$('gaitSeek').value, n-1), s = gaitSamples[idx];
+    // [ms,seq,landings,heel,f1,f2,cadence,az,walking,interval,contact,variation,phase]
+    var frontPressure = Math.min(1, Math.max(s[4],s[5])/4095);
+    var heelPressure = Math.min(1, s[3]/400);
+    $('animFront1').setAttribute('opacity', (.08 + .85 * Math.min(1, s[4]/4095)).toFixed(2));
+    $('animFront2').setAttribute('opacity', (.08 + .85 * Math.min(1, s[5]/4095)).toFixed(2));
+    $('animHeel').setAttribute('opacity', (.08 + .85 * heelPressure).toFixed(2));
+    // 한 발의 착지 시각과 앞꿈치 접촉/가속도 변화로 운동 구간을 추정.
+    // x/y/회전은 시각화 동작이며 실제 신발의 공간 좌표가 아닙니다.
+    var stride = Math.max(550, Math.min(1800, s[9] || (s[6] ? 60000/s[6] : 1050)));
+    var landingAt = s[0];
+    for(var k=idx;k>0;k--){
+      if(gaitSamples[k][2] > gaitSamples[k-1][2]) { landingAt = gaitSamples[k][0]; break; }
+    }
+    var cycle = Math.max(0, Math.min(1, (s[0]-landingAt)/stride));
+    var moving = !!s[8] && (s[12] === 0 || Math.abs(s[7]-1) > .22);
+    var lift = moving ? (7 + 15 * Math.sin(Math.PI*cycle)) : 0;
+    var shift = s[8] ? 12 * Math.sin(2*Math.PI*cycle) : 0;
+    var angle = moving ? -9 + 17*cycle : Math.max(-4, Math.min(7, 8*frontPressure-3*heelPressure));
+    $('shoeMove').setAttribute('transform','translate('+shift.toFixed(1)+' '+(-lift).toFixed(1)+') rotate('+angle.toFixed(1)+' 185 116)');
+    $('shoeShadow').setAttribute('opacity', (moving ? .35 : .75));
+    $('gaitAnimState').textContent = !s[8] ? '서 있는 중 · 신발 정지' : (moving ? '발을 들어 앞으로 이동' : '발을 딛는 중');
+    lastAnimatedSeq = s[1]; lastAnimatedLand = s[2];
+    $('gaitTotal').textContent = last[2];
+    $('gaitRecent').textContent = Math.max(0, last[2] - first[2]);
+    $('gaitCad').textContent = (s[6] || 0) + '회/분';
+    var x = function(i){return (4 + i * 352 / Math.max(1,n-1)).toFixed(1);};
+    var y = function(value){return (102 - Math.min(4095,Math.max(0,value))*78/4095).toFixed(1);};
+    if(gaitChartDirty){
+      var lines = '<path d="M4 102H356" stroke="var(--line)" stroke-width="1"/>';
+      lines += '<polyline fill="none" stroke="var(--ok)" stroke-width="2" points="' + gaitSamples.map(function(v,i){return x(i)+','+y(v[4]);}).join(' ') + '"/>';
+      lines += '<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="' + gaitSamples.map(function(v,i){return x(i)+','+y(v[5]);}).join(' ') + '"/>';
+      for(var i=1;i<n;i++) if(gaitSamples[i][2]>gaitSamples[i-1][2])
+        lines += '<circle cx="'+x(i)+'" cy="111" r="3" fill="var(--warn)"/>';
+      lines += '<path id="gaitCursor" d="" stroke="var(--bad)" stroke-width="1.5"/>';
+      svg.innerHTML = lines;
+      gaitChartDirty = false;
+    }
+    $('gaitCursor').setAttribute('d','M'+x(idx)+' 5V114');
+    var seconds = ((s[0]-first[0])/1000).toFixed(1);
+    $('gaitRead').textContent = '기록 시작 +'+seconds+'초 · 오른발 착지 '+s[2]+'회 · '+(s[8] ? '걷는 중' : '쉬는 중')+' · 앞꿈치 '+(s[12] ? '접촉' : '해제');
+  }
+
+
   var batt = null;
   function ingest(d){
     if(!d) return;
+    if(d.gaitSession && d.gaitSession !== remoteSession){
+      remoteSession = String(d.gaitSession);
+      gaitSamples = []; gaitFollowing = true; gaitChartDirty = true;
+    }
     var now = Date.now();
     batt = (typeof d.battery === 'number') ? d.battery : null;
     if(d.hasSensor !== false){ data = d; lastRx = now - (d.sensorAgeMs || 0); }
+    if(!live && typeof d.landings === 'number'){
+      $('gaitTotal').textContent = d.landings;
+      $('gaitRead').textContent = '시연 모드의 가상 수치입니다. 실제 리플레이는 ESP32에 연결해야 합니다.';
+    }
     if(typeof d.lat === 'number' && typeof d.lng === 'number' && !(d.lat === 0 && d.lng === 0)){
       var t = now - (d.locAgeMs || 0);
       if(!loc || loc.lat !== d.lat || loc.lng !== d.lng){
@@ -459,6 +644,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     }
   }
 
+
   function poll(){
     if(!live){
       if(!dropped) ingest(demo());
@@ -469,18 +655,35 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     fetchLive().then(function(d){ busy = false; ingest(d); });
   }
 
+
   // ---- 지도 (인터넷이 되는 기기에서만 지도가 보이고, 안 되면 간단한 경로 그림으로 대체) ----
+  function showOfflineMap(){
+    if(!hasMap) return;
+    hasMap = false;
+    if(map){ map.remove(); map = null; }
+    $('map').style.display = 'none'; $('locBtn').style.display = 'none';
+    $('trail').style.display = 'block'; showMapHelp(); drawTrail();
+  }
+  function showMapHelp(){
+    $('mapHelp').hidden = false;
+    $('mapHelpText').textContent = loc ? '도로 지도는 인터넷이 필요해요. 현재는 상대 경로만 표시합니다.' : '도로 지도는 인터넷이 필요해요. 좌표도 아직 대기 중입니다.';
+    $('mapOnline').hidden = !loc;
+    if(loc) $('mapOnline').href = 'https://www.openstreetmap.org/?mlat='+loc.lat+'&mlon='+loc.lng+'#map=17/'+loc.lat+'/'+loc.lng;
+  }
   function initMap(){
-    if(!hasMap){ $('map').style.display = 'none'; $('locBtn').style.display = 'none'; return; }
+    if(!hasMap){ $('map').style.display = 'none'; $('locBtn').style.display = 'none'; showMapHelp(); drawTrail(); return; }
     $('trail').style.display = 'none';
     map = L.map('map', {zoomControl:true}).setView([37.5665, 126.978], 12);
     // OpenStreetMap 지도는 PC에서 파일을 직접 열면(file://) 접속 주소 정보가 없어 지도를 막습니다.
     // 그럴 때는 같은 OpenStreetMap 데이터를 쓰는 CARTO 지도로 대신 보여 줍니다.
-    if(location.protocol === 'file:'){
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {maxZoom:19, subdomains:'abcd', attribution:'© OpenStreetMap © CARTO'}).addTo(map);
-    } else {
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
-    }
+    var tiles = location.protocol === 'file:'
+      ? L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {maxZoom:19, subdomains:'abcd', attribution:'© OpenStreetMap © CARTO'})
+      : L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'});
+    var tileLoads = 0, tileErrors = 0;
+    tiles.on('tileload', function(){tileLoads++; $('mapHelp').hidden = true;});
+    tiles.on('tileerror', function(){if(++tileErrors >= 3) showOfflineMap();});
+    tiles.addTo(map);
+    setTimeout(function(){if(!tileLoads) showOfflineMap();}, 6500);
     map.on('dragstart', function(){ follow = false; });
     setTimeout(function(){ map.invalidateSize(); }, 300);
   }
@@ -532,34 +735,44 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       li.appendChild(n); li.appendChild(m); li.appendChild(d); ul.appendChild(li);
     });
   }
-  // 구역은 Firebase(/geoshoes/zones)에 저장 → 가족 모두 같은 구역을 보고, 메인 보드가 읽어서 이탈 시 휴대폰 알림을 보냄
-  function zonesObj(){
-    var o = {};
-    zones.forEach(function(z){ o[z.id] = {name:z.name, lat:z.lat, lng:z.lng, r:z.r}; });
-    return o;
-  }
   function saveZones(){
     try { localStorage.setItem('geoshoes_zones', JSON.stringify(zones)); } catch(e){}
     drawZones(); renderZoneList();
-    if(!live) return;   // 시연 모드에서는 이 브라우저에만 저장
-    fetch(DB_URL + ROOT + '/zones.json', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(zonesObj())})
-      .then(function(r){ if(!r.ok) throw new Error('http'); try { localStorage.setItem('geoshoes_zones_synced', '1'); } catch(e){} })
-      .catch(function(){ addLog('안심 구역을 클라우드에 저장하지 못했습니다. 인터넷 연결을 확인하세요.'); });
+    pushZones();
   }
-  function loadZonesRemote(){
-    if(!live) return;
-    fetch(DB_URL + ROOT + '/zones.json', {cache:'no-store'})
+  // 본체(1번)가 /geoshoes/zones를 읽어 이탈 시 보호자 폰(ntfy)으로 알림을 보냄.
+  // 실패하면 zonesDirty로 표시해 두고 다시 올림.
+  var zonesDirty = false, zonePushing = false, zoneLastWrite = 0;
+  function pushZones(){
+    zonesDirty = true;
+    if(zonePushing) return;
+    zonePushing = true;
+    zoneLastWrite = Date.now();
+    var obj = {};
+    zones.forEach(function(z){ obj[z.id] = {name:z.name, lat:z.lat, lng:z.lng, r:z.r}; });
+    var sentAt = zoneLastWrite;
+    fetch(DB_URL + '/geoshoes/zones.json', {method:'PUT', body:JSON.stringify(obj)})
+      .then(function(r){ if(!r.ok) throw new Error('http'); if(zoneLastWrite === sentAt) zonesDirty = false; })
+      .catch(function(){ zMsg('안심 구역을 본체에 아직 전달하지 못했어요. 인터넷이 연결되면 다시 보냅니다.', true); })
+      .then(function(){ zonePushing = false; if(zonesDirty && zoneLastWrite !== sentAt) pushZones(); });
+  }
+  // 시작할 때와 주기적으로 Firebase의 구역을 받아 옴 (다른 보호자 폰에서 바꾼 내용 반영).
+  // Firebase가 비어 있고 이 폰에만 구역이 있으면 이 폰의 구역을 올림.
+  function pullZones(){
+    if(zonesDirty){ if(!zonePushing) pushZones(); return; }
+    if(Date.now() - zoneLastWrite < 10000) return;
+    fetch(DB_URL + '/geoshoes/zones.json', {cache:'no-store'})
       .then(function(r){ if(!r.ok) throw new Error('http'); return r.json(); })
-      .then(function(o){
-        var synced = false;
-        try { synced = localStorage.getItem('geoshoes_zones_synced') === '1'; } catch(e){}
-        if(o === null && !synced){ if(zones.length) saveZones(); return; }   // 처음 한 번: 이 브라우저에 있던 구역을 클라우드로 옮김
-        try { localStorage.setItem('geoshoes_zones_synced', '1'); } catch(e){}
-        var arr = Object.keys(o || {}).sort().map(function(k){ var v = o[k] || {}; return {id:k, name:String(v.name || '안심 구역'), lat:+v.lat, lng:+v.lng, r:+v.r || 200}; })
-                  .filter(function(z){ return isFinite(z.lat) && isFinite(z.lng); });
-        var cur = zones.map(function(z){ return {id:z.id, name:z.name, lat:z.lat, lng:z.lng, r:z.r}; });
-        if(JSON.stringify(arr) === JSON.stringify(cur)) return;   // 바뀐 게 없으면 그대로
-        zones = arr;
+      .then(function(d){
+        if(zonesDirty || Date.now() - zoneLastWrite < 10000) return;
+        if(!d || typeof d !== 'object' || !Object.keys(d).length){ if(zones.length) pushZones(); return; }
+        var next = Object.keys(d).map(function(id){
+          var z = d[id] || {};
+          return {id:id, name:String(z.name || '안심 구역'), lat:+z.lat, lng:+z.lng, r:+z.r || 200};
+        }).filter(function(z){ return Number.isFinite(z.lat) && Number.isFinite(z.lng); });
+        var key = function(a){ return JSON.stringify(a.map(function(z){ return [z.id,z.name,z.lat,z.lng,z.r]; }).sort()); };
+        if(key(next) === key(zones)) return;
+        zones = next;
         try { localStorage.setItem('geoshoes_zones', JSON.stringify(zones)); } catch(e){}
         drawZones(); renderZoneList();
       })
@@ -587,6 +800,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     }
   }
 
+
   // ---- 이동 기록 ----
   function fmtTime(p){
     if(p.t){
@@ -598,22 +812,33 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   function loadHistory(){
     if(histBusy) return;
     histBusy = true;
-    fetch(DB_URL + ROOT + '/track.json?orderBy=%22%24key%22&limitToLast=600', {cache:'no-store'})
+    fetch(DB_URL + '/geoshoes/track.json?orderBy=%22%24key%22&limitToLast=600', {cache:'no-store'})
       .then(function(r){ if(!r.ok) throw new Error('http'); return r.json(); })
-      .then(function(o){
+      .then(function(a){
         histBusy = false;
-        var a = [];
-        Object.keys(o || {}).forEach(function(k){
-          var v = o[k];
-          if(v && typeof v.lat === 'number' && typeof v.lng === 'number') a.push({lat:v.lat, lng:v.lng, t:(+k) * 1000, up:0, acc:v.acc});
-        });
-        a.sort(function(x, y){ return x.t - y.t; });
-        hist = a;
+        hist = Object.keys(a || {}).sort().map(function(key){
+          var r = a[key];
+          return {lat:+r.lat, lng:+r.lng, t:(+key > 1700000000 ? +key*1000 : null), up:0, acc:+r.acc || 0};
+        }).filter(function(p){return Number.isFinite(p.lat) && Number.isFinite(p.lng);});
+        mergeSaved();
         renderHistory();
       })
       .catch(function(){ histBusy = false; });
   }
+  // 이 폰 브라우저에도 기록을 저장해 두면 보드를 재시작해도 이전 기록이 남습니다 (같은 주소로 접속할 때)
+  function mergeSaved(){
+    var saved = [];
+    try { saved = JSON.parse(localStorage.getItem('geoshoes_hist') || '[]'); } catch(e){}
+    var byT = {}, noT = [];
+    saved.forEach(function(p){ byT[p.t] = p; });
+    hist.forEach(function(p){ if(p.t) byT[p.t] = p; else noT.push(p); });
+    var all = Object.keys(byT).map(function(k){ return byT[k]; }).sort(function(a,b){ return a.t - b.t; });
+    if(all.length > 600) all = all.slice(-600);
+    try { localStorage.setItem('geoshoes_hist', JSON.stringify(all.map(function(p){ return {lat:p.lat, lng:p.lng, t:p.t, up:0, acc:p.acc}; }))); } catch(e){}
+    hist = noT.concat(all);
+  }
   var routeLayer = null, scrubMk = null, activeRange = null, sel = [];
+
 
   function getRange(r){
     var now = Date.now(), d;
@@ -699,6 +924,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       : '이동 거리 약 ' + fmtDist(dist) + (span ? ' · ' + span + ' 동안' : '');
     $('rInfoSub').textContent = fmtTime(first) + ' ~ ' + fmtTime(last) + ' · 위치 ' + sel.length + '개 (Wi-Fi 추정이라 실제 거리와 다를 수 있어요)';
 
+
     // 30 m 안에서 이어진 위치는 한 줄로 묶어서 보여 줌 (제자리에 있을 때 같은 줄이 쌓이지 않도록)
     var groups = [], g = null;
     for(i = 0; i < sel.length; i++){
@@ -725,6 +951,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     sc.max = sel.length - 1;
     sc.value = (fit || wasLast) ? sc.max : Math.min(+sc.value, +sc.max);
 
+
     if(hasMap){
       routeLayer = L.layerGroup();
       if(tab === 'hist') routeLayer.addTo(map);
@@ -749,10 +976,11 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     if(activeRange) applyRange(false);
   }
 
+
   // ---- 화면 갱신 ----
   function drawTrail(){
     var svg = $('trail');
-    if(trail.length < 1){ svg.innerHTML = '<text x="150" y="88" text-anchor="middle" fill="var(--sub)" font-size="13">위치를 받으면 경로가 표시됩니다</text>'; return; }
+    if(trail.length < 1){ svg.innerHTML = '<text x="150" y="78" text-anchor="middle" fill="var(--sub)" font-size="13">인터넷 지도 사용 불가</text><text x="150" y="100" text-anchor="middle" fill="var(--sub)" font-size="11">좌표를 받으면 간단한 경로가 표시됩니다</text>'; return; }
     var minLa=1e9,maxLa=-1e9,minLo=1e9,maxLo=-1e9;
     trail.forEach(function(p){minLa=Math.min(minLa,p.lat);maxLa=Math.max(maxLa,p.lat);minLo=Math.min(minLo,p.lng);maxLo=Math.max(maxLo,p.lng);});
     var cLa = (minLa+maxLa)/2, cLo = (minLo+maxLo)/2;
@@ -762,16 +990,18 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       return [150 + (p.lng-cLo)*k/span*110, 85 - (p.lat-cLa)/span*110];
     });
     var last = pts[pts.length-1];
-    svg.innerHTML = '<polyline points="'+pts.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ')+
+    svg.innerHTML = '<text x="10" y="18" fill="var(--sub)" font-size="11">인터넷 지도 없음 · 상대 경로</text><polyline points="'+pts.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ')+
       '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" opacity=".6"/>'+
       '<circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="7" fill="var(--accent)"/>'+
       '<circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="3" fill="var(--panel)"/>';
   }
 
+
   function setBadge(cls, text){
     $('badge').className = 'badge ' + cls;
     $('badgeText').textContent = text;
   }
+
 
   function render(){
     var now = Date.now();
@@ -779,6 +1009,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     var rxAge = lastRx ? now - lastRx : null;
     $('rxAge').textContent = fmtAge(rxAge);
     $('rxAge').className = 'age ' + (connected ? 'ok' : 'bad');
+
 
     // 위치
     var locOld = false;
@@ -791,15 +1022,17 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       $('locAge').textContent = fmtAge(la);
       $('locAge').className = 'age ' + (locOld ? 'warn' : 'ok');
       $('mapLink').href = 'https://www.google.com/maps?q=' + loc.lat + ',' + loc.lng;
+      if(!hasMap) showMapHelp();
       $('addrSub').textContent = '대략적인 위치입니다' + (loc.acc ? ' · 오차 약 ' + Math.round(loc.acc) + ' m' : '');
     }
+
 
     // 안심 구역
     var zc = zoneCheck(), zoneOut = false, zoneMsg = '';
     if(!zones.length){
       $('zoneText').textContent = '아직 등록한 구역이 없어요';
       $('zoneText').className = 'zone';
-      $('zoneSub').textContent = loc ? '집, 복지관처럼 자주 가는 곳을 등록해 두면, 모든 구역을 벗어났을 때 보호자 폰으로 알려 드려요. 등록한 구역은 가족 모두에게 공유돼요.' : '위치를 받으면 지금 위치로, 또는 주소로 찾아서 등록할 수 있어요.';
+      $('zoneSub').textContent = loc ? '집, 복지관처럼 자주 가는 곳을 등록해 두면, 모든 구역을 벗어났을 때 알려 드려요.' : '위치를 받으면 등록할 수 있어요.';
     } else if(!zc){
       $('zoneText').textContent = '위치를 기다리는 중이에요';
       $('zoneText').className = 'zone';
@@ -843,6 +1076,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       n.textContent = '위치 갱신이 늦어지고 있습니다. 마지막으로 받은 위치를 표시합니다.';
     } else n.className = 'notice';
 
+
     // 본체 배터리 (값이 없으면 숨김)
     if(batt === null){ $('batt').hidden = true; }
     else {
@@ -862,18 +1096,31 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     else if(locOld) setBadge('warn', '위치 갱신 지연');
     else setBadge('ok', '정상 수신 중');
 
+
     // 센서
     if(data){
-      var f = data.front, h = data.heel;
-      $('vFront').textContent = f > PRESS_MIN ? '눌림 · ' + f : f;
-      $('vHeel').textContent = h > PRESS_MIN ? '눌림 · ' + h : h;
+      var f = Number(data.front) || 0, f2 = Number(data.front2) || 0, h = Number(data.heel) || 0;
+      $('landingNum').textContent = (typeof data.landings === 'number') ? data.landings : '--';
+      $('cadenceNum').textContent = (typeof data.cadence === 'number') ? data.cadence : '--';
       $('bFront').style.width = Math.max(3, Math.min(100, f/4095*100)) + '%';
-      $('bHeel').style.width = Math.max(3, Math.min(100, h/4095*100)) + '%';
+      $('bFront2').style.width = Math.max(3, Math.min(100, f2/4095*100)) + '%';
+      // 뒤꿈치 11kΩ 분압의 관측 상단 약 400을 화면상 100%로 표시.
+      $('bHeel').style.width = Math.max(3, Math.min(100, h/400*100)) + '%';
       $('bFront').className = 'fill' + (f > PRESS_MIN ? ' on' : '');
+      $('bFront2').className = 'fill' + (f2 > PRESS_MIN ? ' on' : '');
       $('bHeel').className = 'fill' + (h > PRESS_MIN ? ' on' : '');
-      $('fFront').setAttribute('opacity', Math.min(1, f/3000).toFixed(2));
-      $('fHeel').setAttribute('opacity', Math.min(1, h/3000).toFixed(2));
-      if((f + h) > WEAR_MIN) lastPressAt = now;
+      $('fFront').setAttribute('opacity', Math.min(1, Math.max(f, f2)/3000).toFixed(2));
+      $('fHeel').setAttribute('opacity', Math.min(1, h/400).toFixed(2));
+      var patternFresh = connected && data.walking === 1;
+      $('patternInterval').textContent = patternFresh && data.intervalMs > 0 ? data.intervalMs + 'ms' : '--';
+      $('patternContact').textContent = patternFresh && data.contactMs > 0 ? data.contactMs + 'ms' : '--';
+      var patternReady = patternFresh && typeof data.variationPct === 'number' && data.variationPct < 255;
+      $('patternVariation').textContent = patternReady ? data.variationPct + '%' : '--';
+      $('patternState').textContent = !patternFresh ? '보행 중이 아니거나 센서 신호를 기다리는 중이에요.'
+        : !patternReady ? '착지 간격을 모으는 중이에요 (최소 3개 필요).'
+        : data.variationPct <= 20 ? '최근 오른발 착지 간격이 비교적 일정해요.'
+        : '최근 오른발 착지 간격의 변화가 있어요.';
+      if((f + f2 + h) > WEAR_MIN) lastPressAt = now;
       var worn = lastPressAt > 0 && now - lastPressAt < WEAR_HOLD_MS;   // 최근 몇 초 안에 밟았으면 착용 중
       $('wear').textContent = worn ? '착용 중' : '착용 해제 추정';
       $('wear').className = 'chip ' + (worn ? 'ok' : 'bad');
@@ -895,16 +1142,20 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       if(!connected){ mt = '깔창 신호가 없어요'; ms = '연결되면 다시 표시됩니다.'; mc = 'bad'; }
       else if(!data.mpuOK){ mt = '움직임 센서 확인 필요'; ms = '깔창의 움직임 센서가 응답하지 않습니다.'; mc = 'warn'; }
       else if(!worn){ mt = '신발을 벗은 것 같아요'; ms = '발바닥 압력이 거의 감지되지 않습니다.'; mc = 'bad'; }
-      else if(moving){ mt = '움직이고 있어요'; ms = '걷거나 발을 움직이는 중입니다.'; mc = 'ok'; }
+      else if(data.walking){ mt = '반복 보행 감지'; ms = '이 발의 착지 후보가 반복되고 있습니다.'; mc = 'ok'; }
+      else if(moving){ mt = '발 움직임 감지'; ms = '보행인지 확인 중입니다.'; mc = 'warn'; }
       else if(tilted){ mt = '발이 많이 기울어져 있어요'; ms = '앉아 있거나 누워 있을 수 있습니다. 상황을 확인해 보세요.'; mc = 'warn'; }
       else { mt = '가만히 있어요'; ms = lastMoveAt ? ('마지막 움직임 ' + fmtAge(now - lastMoveAt)) : '아직 움직임이 감지되지 않았어요.'; mc = ''; }
       if(zoneOut){ mt = '안심 구역을 벗어났어요'; ms = zoneMsg + ' 위치를 확인하세요.'; mc = 'bad'; }
+      if(connected && data.fallSuspected){ mt = '넘어짐 의심 · 상태 확인'; ms = '걷던 중 큰 충격 뒤 정지했습니다. 실제 상태를 직접 확인해 주세요.'; mc = 'bad'; }
       $('mvTitle').textContent = mt;
       $('mvSub').textContent = ms;
       $('mvDot').className = 'mvdot ' + mc;
       $('hero').className = 'hero ' + (mc || 'idle');
       if(connected) stableLog('wear', worn, '깔창 착용이 확인되었습니다.', '착용 해제가 추정됩니다. 신발을 벗었는지 확인하세요.');
+      if(connected) stableLog('fall', !!data.fallSuspected, '넘어짐 의심: 사용자 상태를 직접 확인해 주세요.', '넘어짐 의심 표시가 해제되었습니다.');
     }
+
 
     // 상태 변화 기록
     if(lastRx) stableLog('conn', !!connected, '깔창 연결이 복구되었습니다.', '깔창 연결이 끊겼습니다. 마지막 위치를 유지합니다.');
@@ -913,6 +1164,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     drawView();
     addrTick();
   }
+
 
   // ---- 주소 표시 (위도·경도를 도로명 주소로 바꿔 보여줌) ----
   var addrLoc = null, addrAt = 0, addrBusy = false, addrFail = false;
@@ -943,6 +1195,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
       });
   }
 
+
   // ---- 화면(탭) 전환 ----
   var TABS = ['home', 'hist', 'log'];
   function setTab(t){
@@ -951,7 +1204,7 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     TABS.forEach(function(k){ $('page-' + k).hidden = (k !== t); });
     var bs = document.querySelectorAll('.tabbar button');
     for(var i = 0; i < bs.length; i++) bs[i].setAttribute('aria-selected', bs[i].getAttribute('data-t') === t ? 'true' : 'false');
-    if(t !== 'log') $(t === 'hist' ? 'mapSlotHist' : 'mapSlotHome').appendChild($('mapBox'));
+    if(t === 'hist' || t === 'home') $(t==='hist'?'mapSlotHist':'mapSlotHome').appendChild($('mapBox'));
     if(hasMap && map){
       if(routeLayer){
         if(t === 'hist') routeLayer.addTo(map); else map.removeLayer(routeLayer);
@@ -971,12 +1224,13 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   });
   $('goHist').addEventListener('click', function(){ setTab('hist'); });
 
+
   // ---- 버튼 ----
   $('modeBtn').addEventListener('click', function(){
     live = !live;
-    this.textContent = live ? '실시간 연결 사용 중' : '시연 모드 사용 중';
+    this.textContent = live ? '온라인 데이터 사용 중' : '시연 모드 사용 중';
     hist = []; histCount = -1; trail = []; hideRoute(); renderHistory();
-    addLog(live ? '클라우드에서 실시간 데이터를 받습니다.' : '시연 모드로 전환했습니다.');
+    addLog(live ? 'ESP32에서 실시간 데이터를 받습니다.' : '시연 모드로 전환했습니다.');
   });
   var rgs = document.querySelectorAll('.rg');
   for(var ri = 0; ri < rgs.length; ri++){
@@ -998,9 +1252,10 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   $('hideBtn').addEventListener('click', hideRoute);
   $('clrBtn').addEventListener('click', function(){
     if(!window.confirm('저장된 이동 기록을 모두 지울까요?')) return;
-    var done = function(){ hist = []; trail = []; histCount = -1; hideRoute(); renderHistory(); addLog('저장된 이동 기록을 지웠습니다.'); };
-    if(!live){ done(); return; }
-    fetch(DB_URL + ROOT + '/track.json', {method:'DELETE'}).then(done).catch(function(){ addLog('기록을 지우지 못했습니다. 인터넷 연결을 확인하세요.'); });
+    try { localStorage.removeItem('geoshoes_hist'); } catch(e){}
+    hist = []; trail = []; histCount = -1;
+    hideRoute(); renderHistory();
+    addLog('이 폰에 저장된 이동 기록을 지웠습니다.');
   });
   $('dropBtn').addEventListener('click', function(){
     dropped = !dropped;
@@ -1008,7 +1263,26 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     if(!live) addLog(dropped ? '시험: 데이터 전송을 중단했습니다.' : '시험: 데이터 전송을 재개했습니다.');
   });
 
-  $('modeBtn').textContent = live ? '실시간 연결 사용 중' : '시연 모드 사용 중';
+
+  $('modeBtn').textContent = live ? '온라인 데이터 사용 중' : '시연 모드 사용 중';
+  $('gaitSeek').addEventListener('input', function(){ gaitFollowing = (+this.value === +this.max); renderGait(); });
+  function replayTick(){
+      var seek = $('gaitSeek');
+      if(+seek.value >= +seek.max){ clearInterval(gaitTimer); gaitTimer = null; $('gaitPlay').textContent = '재생'; return; }
+      seek.value = +seek.value + 1; renderGait();
+  }
+  $('gaitPlay').addEventListener('click', function(){
+    if(gaitTimer){ clearInterval(gaitTimer); gaitTimer = null; this.textContent = '재생'; fetchGait(); return; }
+    if(!gaitSamples.length) return;
+    gaitFollowing = false;
+    if(+$('gaitSeek').value >= +$('gaitSeek').max) $('gaitSeek').value = 0;
+    this.textContent = '일시정지';
+    gaitTimer = setInterval(replayTick, +$('gaitSpeed').value);
+    renderGait();
+  });
+  $('gaitSpeed').addEventListener('change', function(){
+    if(gaitTimer){ clearInterval(gaitTimer); gaitTimer = setInterval(replayTick, +this.value); }
+  });
   // ---- 주소로 안심 구역 찾기 (OpenStreetMap 무료 주소 검색, 인터넷 필요) ----
   function zMsg(t, err){ $('zMsg').textContent = t || ''; $('zMsg').className = 'zmsg' + (err ? ' err' : ''); }
   function shortAddr(r){
@@ -1028,28 +1302,6 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     }
     return z;
   }
-  // 입력한 주소를 OpenStreetMap이 찾기 쉬운 형태로 단계별로 바꿔 봄
-  // 1) 그대로  2) 층·호·괄호·상호 등을 뺀 '도시 + 도로명 + 번호'  3) '도로명 + 번호'  4) '도시 + 도로명'(도로 위치)
-  function addrCandidates(q){
-    var list = [], add = function(x, note){ x = (x || '').replace(/\s+/g, ' ').trim(); if(x && !list.some(function(c){ return c.q === x; })) list.push({q:x, note:note}); };
-    var clean = q.replace(/\([^)]*\)/g, ' ').replace(/,/g, ' ')
-                 .replace(/지하\s*\d+\s*층?/g, ' ').replace(/\d+\s*층/g, ' ').replace(/\d+\s*호/g, ' ')
-                 .replace(/경기\s/, '경기도 ').replace(/서울\s/, '서울특별시 ');
-    add(q, '');
-    var road = clean.match(/([가-힣A-Za-z0-9]+(?:로|길))\s*(\d+(?:-\d+)?)/);
-    var city = clean.match(/([가-힣]+시)(?=\s|$)/);
-    var gu = clean.match(/([가-힣]+[구군])(?=\s|$)/);
-    if(road){
-      var rn = road[1] + ' ' + road[2];
-      add((city ? city[1] + ' ' : '') + (gu ? gu[1] + ' ' : '') + rn, '');
-      add((city ? city[1] + ' ' : '') + rn, '');
-      add(rn, '');
-      add((city ? city[1] + ' ' : '') + road[1], '건물을 못 찾아 도로 위치로 찾았어요. 반경을 넉넉하게 잡으세요.');
-    } else {
-      add(clean, '');
-    }
-    return list;
-  }
   var searchBusy = false;
   function searchAddr(){
     var q = $('zAddr').value.trim();
@@ -1057,41 +1309,31 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
     if(!q){ zMsg('찾을 주소나 장소 이름을 입력하세요.', true); $('zAddr').focus(); return; }
     if(searchBusy) return;
     searchBusy = true;
-    var cands = addrCandidates(q), i = 0;
-    function tryNext(){
-      if(i >= cands.length){
+    zMsg('찾는 중…');
+    var ctl = new AbortController(), t = setTimeout(function(){ ctl.abort(); }, 8000);
+    fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=kr&accept-language=ko&q=' + encodeURIComponent(q), {signal:ctl.signal})
+      .then(function(r){ clearTimeout(t); if(!r.ok) throw new Error('http'); return r.json(); })
+      .then(function(list){
         searchBusy = false;
-        zMsg('검색 결과가 없어요. 층수·상호를 빼고 도로명과 건물번호(만안로 230)만 쓰거나, 역·학교 같은 장소 이름으로 찾아보세요.', true);
-        return;
-      }
-      var c = cands[i++];
-      zMsg('찾는 중… (' + c.q + ')');
-      var ctl = new AbortController(), t = setTimeout(function(){ ctl.abort(); }, 8000);
-      fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=kr&accept-language=ko&q=' + encodeURIComponent(c.q), {signal:ctl.signal})
-        .then(function(r){ clearTimeout(t); if(!r.ok) throw new Error('http'); return r.json(); })
-        .then(function(list){
-          if(!list || !list.length){ setTimeout(tryNext, 1100); return; }   // 무료 서버 규칙: 1초에 한 번
-          searchBusy = false;
-          zMsg((c.q !== q ? '"' + c.q + '"(으)로 찾은 결과예요. ' : '') + (c.note || '아래에서 맞는 곳을 고르면 안심 구역으로 등록돼요.'));
-          list.forEach(function(r){
-            var li = document.createElement('li'), b = document.createElement('button'), tx = document.createElement('span'), go = document.createElement('span');
-            var label = shortAddr(r);
-            b.type = 'button';
-            tx.className = 't'; tx.textContent = label;
-            go.className = 'go'; go.textContent = '이곳으로 등록';
-            b.appendChild(tx); b.appendChild(go);
-            b.addEventListener('click', function(){
-              var name = ($('zName').value.trim() || r.name || ('구역 ' + (zones.length + 1))).slice(0, 10);
-              addZoneAt(+r.lat, +r.lon, name, label);
-              $('zres').innerHTML = ''; $('zAddr').value = '';
-              zMsg('등록했어요: ' + name);
-            });
-            li.appendChild(b); $('zres').appendChild(li);
+        if(!list || !list.length){ zMsg('검색 결과가 없어요. 도로명과 건물번호(양화로37번길 34)나 장소 이름으로 다시 찾아보세요.', true); return; }
+        zMsg('아래에서 맞는 곳을 고르면 안심 구역으로 등록돼요.');
+        list.forEach(function(r){
+          var li = document.createElement('li'), b = document.createElement('button'), tx = document.createElement('span'), go = document.createElement('span');
+          var label = shortAddr(r);
+          b.type = 'button';
+          tx.className = 't'; tx.textContent = label;
+          go.className = 'go'; go.textContent = '이곳으로 등록';
+          b.appendChild(tx); b.appendChild(go);
+          b.addEventListener('click', function(){
+            var name = $('zName').value.trim() || r.name || ('구역 ' + (zones.length + 1));
+            addZoneAt(+r.lat, +r.lon, name.slice(0, 10), label);
+            $('zres').innerHTML = ''; $('zAddr').value = '';
+            zMsg('등록했어요: ' + name.slice(0, 10));
           });
-        })
-        .catch(function(){ clearTimeout(t); searchBusy = false; zMsg('주소를 찾지 못했어요. 인터넷 연결을 확인하고 다시 시도하세요.', true); });
-    }
-    tryNext();
+          li.appendChild(b); $('zres').appendChild(li);
+        });
+      })
+      .catch(function(){ clearTimeout(t); searchBusy = false; zMsg('주소를 찾지 못했어요. 인터넷 연결을 확인하고 다시 시도하세요.', true); });
   }
   $('zSearch').addEventListener('click', searchAddr);
   $('zAddr').addEventListener('keydown', function(e){ if(e.key === 'Enter') searchAddr(); });
@@ -1108,11 +1350,13 @@ ul.log time{color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
   initMap();
   drawZones();
   renderZoneList();
-  loadZonesRemote();
-  setInterval(loadZonesRemote, 30000);   // 다른 가족이 바꾼 구역도 30초 안에 반영
   setTab((location.hash || '').slice(1));
   poll(); render();
-  setInterval(poll, 2000);
+  fetchGait();
+  setInterval(poll, 1000);
+  setInterval(fetchGait, 4000);
+  pullZones();
+  setInterval(pullZones, 15000);
   setInterval(render, 500);
 })();
 </script>
